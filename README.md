@@ -1,4 +1,4 @@
-# FreeSWITCH Telephony Service Sandbox
+# FreeSWITCH Telephony Service
 
 This repository contains the deployment blueprints, configurations, and application source code for the FreeSWITCH-based lead ingestion platform. The codebase supports standalone virtual machine orchestrations as well as cloud-native Kubernetes deployments.
 
@@ -22,8 +22,8 @@ The following diagram illustrates the horizontal propagation of call signaling, 
 
 ```mermaid
 flowchart LR
-    classDef comp fill:#f5f5f7,stroke:#1d1d1f,stroke-width:1px;
-    classDef database fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px;
+    classDef comp fill:#2d2d30,stroke:#858585,stroke-width:1px,color:#ffffff;
+classDef database fill:#2d2d30,stroke:#4caf50,stroke-width:2px,color:#ffffff;
 
     SIP[Twilio SIP Trunk] -->|Signaling & Media| FS[FreeSWITCH Engine]:::comp
     FS -->|Outbound ESL Connection| EP[ESL Event Publisher]:::comp
@@ -64,11 +64,3 @@ git checkout freeswitch-ivr-kubernetes
 Refer to the [freeswitch-ivr-kubernetes README](https://github.com/A5HW1NRA7AN/Telephony-Service/blob/freeswitch-ivr-kubernetes/README.md) for dialplan XML mapping, custom greeting wave files, and IVR menu configurations.
 
 ---
-
-## Repository Governance
-
-To ensure the integrity of the sandbox environment, developers must adhere to the following rules:
-
-1. **Branch Isolation**: Do not commit application code, Helm charts, or configuration files directly to the `main` branch. 
-2. **Local Environment Templates**: Do not commit secrets, private key files (`.pem`), active `.env` configuration files, or local Terraform states. Use the provided `.env.example` templates.
-3. **Branch Specific Scope**: Keep configurations strictly isolated. Do not merge Kubernetes deployment manifests into the standalone EC2 branch.
