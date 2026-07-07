@@ -19,6 +19,12 @@ leadService:
       memory: "512Mi"
   dbUrl: "jdbc:postgresql://postgres-service:5432/lead_db"
   leadContext: "public,from-missed-call"
+  serviceType: "ClusterIP"
+  ingress:
+    enabled: false
+    host: "lead-service.local"
+    authSecretName: "lead-service-basic-auth"
+    whitelistSourceRange: ""
 
 eventPublisher:
   replicaCount: 2
@@ -50,20 +56,21 @@ freeswitch:
       cpu: "2"
       memory: "2Gi"
   externalIp: "18.177.63.129"
+  eslPassword: ""
 
 postgres:
   replicaCount: 1
   image: "postgres:16-alpine"
   database: "lead_db"
   user: "lead_user"
-  password: "lead_password"
+  password: ""
   storageSize: "10Gi"
 
 pgadmin:
   replicaCount: 1
   image: "dpage/pgadmin4:latest"
   email: "admin@admin.com"
-  password: "admin"
+  password: ""
 
 leadRegistry:
   url: "http://aa21eaac375b4493ca4a6431d5a180a6-33565e963dc9b6f8.elb.us-west-1.amazonaws.com/leads/v1/initiate"

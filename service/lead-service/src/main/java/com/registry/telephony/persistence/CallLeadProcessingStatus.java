@@ -5,6 +5,8 @@ public enum CallLeadProcessingStatus {
     SENDING,
     SENT,
     FAILED,
+    FAILED_RETRYABLE,
+    FAILED_PERMANENT,
     SKIPPED_NO_REGISTRY_URL
 }
 
