@@ -33,7 +33,12 @@ public class LeadIngestStaleSweeper {
         Instant cutoff = Instant.now().minus(staleSec, ChronoUnit.SECONDS);
         List<CallLeadIngestLog> stuck =
                 repository.findStale(
-                        List.of(CallLeadProcessingStatus.RECEIVED, CallLeadProcessingStatus.SENDING), cutoff);
+                        List.of(
+                                CallLeadProcessingStatus.RECEIVED,
+                                CallLeadProcessingStatus.SENDING,
+                                CallLeadProcessingStatus.FAILED_RETRYABLE),
+                        Instant.now(),
+                        cutoff);
         for (CallLeadIngestLog row : stuck) {
             log.info("Retrying stale lead ingest {}", row.getId());
             leadDispatchService.dispatchNow(row.getId());

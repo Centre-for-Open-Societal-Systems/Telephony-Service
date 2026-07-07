@@ -20,8 +20,11 @@ public class CoreBeans {
     }
 
     @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
+    public RestTemplate restTemplate(org.springframework.boot.web.client.RestTemplateBuilder builder) {
+        return builder
+                .setConnectTimeout(java.time.Duration.ofSeconds(5))
+                .setReadTimeout(java.time.Duration.ofSeconds(10))
+                .build();
     }
 
     @Bean(name = "telephonyTransactionTemplate")
