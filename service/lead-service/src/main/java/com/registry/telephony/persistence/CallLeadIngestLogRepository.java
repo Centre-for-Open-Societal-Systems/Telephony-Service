@@ -18,9 +18,12 @@ public interface CallLeadIngestLogRepository extends JpaRepository<CallLeadInges
             """
             SELECT l FROM CallLeadIngestLog l
             WHERE l.processingStatus IN :statuses
+            AND (l.nextRetryAt IS NULL OR l.nextRetryAt <= :now)
             AND l.updatedAt < :cutoff
             """)
     List<CallLeadIngestLog> findStale(
-            @Param("statuses") List<CallLeadProcessingStatus> statuses, @Param("cutoff") Instant cutoff);
+            @Param("statuses") List<CallLeadProcessingStatus> statuses,
+            @Param("now") Instant now,
+            @Param("cutoff") Instant cutoff);
 }
 

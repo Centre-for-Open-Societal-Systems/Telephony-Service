@@ -1,0 +1,26 @@
+{{- if .Values.leadService.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lead-service-ingress
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: {{ .Values.leadService.ingress.authSecretName | quote }}
+    nginx.ingress.kubernetes.io/auth-realm: "Authentication Required"
+    {{- if .Values.leadService.ingress.whitelistSourceRange }}
+    nginx.ingress.kubernetes.io/whitelist-source-range: {{ .Values.leadService.ingress.whitelistSourceRange | quote }}
+    {{- end }}
+spec:
+  rules:
+  - host: {{ .Values.leadService.ingress.host | quote }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: lead-service-service
+            port:
+              number: 8080
+{{- end }}

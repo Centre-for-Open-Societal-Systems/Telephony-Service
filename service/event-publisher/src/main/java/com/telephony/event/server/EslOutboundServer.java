@@ -35,9 +35,16 @@ public class EslOutboundServer {
     private final String leadServiceUrl;
     private final int maxRetries;
     private final long retryDelayMs;
+    private final String spoolDir;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private SocketClient socketClient;
+    private final java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(10, r -> {
+        Thread t = new Thread(r);
+        t.setName("esl-rest-publisher-" + t.getId());
+        t.setDaemon(true);
+        return t;
+    });
 
     public EslOutboundServer(
             @Value("${telephony.esl.outbound-host:0.0.0.0}") String host,
@@ -45,13 +52,15 @@ public class EslOutboundServer {
             RestTemplate restTemplate,
             @Value("${telephony.lead-service.url:http://lead-service:8080}") String leadServiceUrl,
             @Value("${telephony.lead-service.max-retries:3}") int maxRetries,
-            @Value("${telephony.lead-service.retry-delay-ms:1000}") long retryDelayMs) {
+            @Value("${telephony.lead-service.retry-delay-ms:1000}") long retryDelayMs,
+            @Value("${telephony.esl.spool-dir:spool}") String spoolDir) {
         this.host = host;
         this.port = port;
         this.restTemplate = restTemplate;
         this.leadServiceUrl = leadServiceUrl;
         this.maxRetries = maxRetries;
         this.retryDelayMs = retryDelayMs;
+        this.spoolDir = spoolDir;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -79,6 +88,52 @@ public class EslOutboundServer {
         if (socketClient != null) {
             log.info("Stopping Outbound ESL Server");
             socketClient.stop();
+        }
+        log.info("Shutting down event publisher thread pool");
+        executor.shutdown();
+    }
+
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelayString = "${telephony.esl.spool-retry-interval-ms:30000}")
+    public void retrySpooledEvents() {
+        java.io.File dir = new java.io.File(spoolDir);
+        if (!dir.exists() || !dir.isDirectory()) {
+            return;
+        }
+        java.io.File[] files = dir.listFiles((d, name) -> name.endsWith(".json"));
+        if (files == null || files.length == 0) {
+            return;
+        }
+
+        log.info("Found {} spooled events to retry", files.length);
+        String url = leadServiceUrl + "/api/v1/call-events";
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+
+        for (java.io.File file : files) {
+            try {
+                String json = java.nio.file.Files.readString(file.toPath(), java.nio.charset.StandardCharsets.UTF_8);
+                HttpEntity<String> request = new HttpEntity<>(json, httpHeaders);
+                restTemplate.postForEntity(url, request, String.class);
+                log.info("Successfully sent spooled event {} to lead-service. Deleting file.", file.getName());
+                java.nio.file.Files.delete(file.toPath());
+            } catch (Exception e) {
+                log.warn("Failed to resend spooled event {}: {}", file.getName(), e.getMessage());
+            }
+        }
+    }
+
+    private void spoolEvent(String json) {
+        try {
+            java.nio.file.Path path = java.nio.file.Paths.get(spoolDir);
+            if (!java.nio.file.Files.exists(path)) {
+                java.nio.file.Files.createDirectories(path);
+            }
+            String filename = "event-" + java.util.UUID.randomUUID() + ".json";
+            java.nio.file.Path filePath = path.resolve(filename);
+            java.nio.file.Files.writeString(filePath, json, java.nio.charset.StandardCharsets.UTF_8);
+            log.info("Successfully spooled failed event to {}", filePath);
+        } catch (Exception e) {
+            log.error("Critical: Failed to spool event to disk: {}", e.getMessage(), e);
         }
     }
 
@@ -181,7 +236,7 @@ public class EslOutboundServer {
                         eventType, uniqueId, ivrSelection, ivrLanguage);
 
                 String json = objectMapper.writeValueAsString(payload);
-                postWithRetry(json);
+                executor.submit(() -> postWithRetry(json));
 
             } catch (Exception e) {
                 log.error("Failed to publish call event to lead-service", e);
@@ -216,7 +271,8 @@ public class EslOutboundServer {
                     }
                 }
             }
-            log.error("Exhausted {} retries posting call event to lead-service. Event dropped.", maxRetries);
+            log.error("Exhausted {} retries posting call event to lead-service. Spooling to disk.", maxRetries);
+            spoolEvent(json);
         }
     }
 }

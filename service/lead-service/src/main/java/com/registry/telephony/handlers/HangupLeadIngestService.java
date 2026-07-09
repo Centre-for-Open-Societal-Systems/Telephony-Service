@@ -70,6 +70,8 @@ public class HangupLeadIngestService {
         row.setNormalizedLeadPayload(lead);
         row.setIvrSelection(ivrSelection);
         row.setIvrLanguage(ivrLanguage);
+        row.setAttemptCount(0);
+        row.setNextRetryAt(null);
         row.setCreatedAt(Instant.now());
         row.setUpdatedAt(Instant.now());
 

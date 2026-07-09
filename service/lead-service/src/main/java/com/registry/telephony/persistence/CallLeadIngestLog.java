@@ -69,5 +69,11 @@ public class CallLeadIngestLog {
 
     @Column(name = "ivr_language", length = 16)
     private String ivrLanguage;
+
+    @Column(name = "attempt_count", nullable = false)
+    private int attemptCount = 0;
+
+    @Column(name = "next_retry_at")
+    private Instant nextRetryAt;
 }
 
