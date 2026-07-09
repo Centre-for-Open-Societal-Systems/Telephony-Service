@@ -67,30 +67,63 @@ pipeline {
                     file(credentialsId: env.KUBECONFIG_CRED_ID, variable: 'KUBECONFIG'),
                     [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
                 ]) {
-                    sh """
-                        if [ ! -f ./helm ]; then
-                            echo "==> Downloading Helm..."
-                            curl -sSL https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz | tar xz
-                            mv linux-amd64/helm ./helm
-                            rm -rf linux-amd64
-                        fi
+                    script {
+                        def pgPass = 'lead_password'
+                        def pgaPass = 'admin'
+                        def eslPass = 'CluSt3r@Esl#2026!'
                         
-                        echo "==> Refreshing ECR registry credentials secret (regcred)..."
-                        ECR_PASSWORD=\$(aws ecr get-login-password --region ${AWS_REGION})
-                        /usr/local/bin/kubectl --kubeconfig \${KUBECONFIG} delete secret regcred --ignore-not-found
-                        /usr/local/bin/kubectl --kubeconfig \${KUBECONFIG} create secret docker-registry regcred \\
-                            --docker-server=\${ECR_REGISTRY} \\
-                            --docker-username=AWS \\
-                            --docker-password="\${ECR_PASSWORD}"
+                        try {
+                            withCredentials([string(credentialsId: 'postgres-password', variable: 'PG_PASS_VAR')]) {
+                                pgPass = env.PG_PASS_VAR
+                            }
+                        } catch (Exception e) {
+                            echo "postgres-password credential not found in Jenkins, using default password"
+                        }
                         
-                        echo "==> Deploying applications via Helm..."
-                        ./helm upgrade --install telephony ./deploy/helm/telephony \\
-                            --set global.registry=\${ECR_REGISTRY} \\
-                            --set leadService.image.tag=${BUILD_NUMBER} \\
-                            --set eventPublisher.image.tag=${BUILD_NUMBER} \\
-                            --set freeswitch.image.tag=${BUILD_NUMBER} \\
-                            --kubeconfig \${KUBECONFIG}
-                    """
+                        try {
+                            withCredentials([string(credentialsId: 'pgadmin-password', variable: 'PGA_PASS_VAR')]) {
+                                pgaPass = env.PGA_PASS_VAR
+                            }
+                        } catch (Exception e) {
+                            echo "pgadmin-password credential not found in Jenkins, using default password"
+                        }
+                        
+                        try {
+                            withCredentials([string(credentialsId: 'freeswitch-esl-password', variable: 'ESL_PASS_VAR')]) {
+                                eslPass = env.ESL_PASS_VAR
+                            }
+                        } catch (Exception e) {
+                            echo "freeswitch-esl-password credential not found in Jenkins, using default password"
+                        }
+
+                        sh """
+                            if [ ! -f ./helm ]; then
+                                echo "==> Downloading Helm..."
+                                curl -sSL https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz | tar xz
+                                mv linux-amd64/helm ./helm
+                                rm -rf linux-amd64
+                            fi
+                            
+                            echo "==> Refreshing ECR registry credentials secret (regcred)..."
+                            ECR_PASSWORD=\$(aws ecr get-login-password --region ${AWS_REGION})
+                            /usr/local/bin/kubectl --kubeconfig \${KUBECONFIG} delete secret regcred --ignore-not-found
+                            /usr/local/bin/kubectl --kubeconfig \${KUBECONFIG} create secret docker-registry regcred \\
+                                --docker-server=\${ECR_REGISTRY} \\
+                                --docker-username=AWS \\
+                                --docker-password="\${ECR_PASSWORD}"
+                            
+                            echo "==> Deploying applications via Helm..."
+                            ./helm upgrade --install telephony ./deploy/helm/telephony \\
+                                --set global.registry=\${ECR_REGISTRY} \\
+                                --set leadService.image.tag=${BUILD_NUMBER} \\
+                                --set eventPublisher.image.tag=${BUILD_NUMBER} \\
+                                --set freeswitch.image.tag=${BUILD_NUMBER} \\
+                                --set postgres.password="${pgPass}" \\
+                                --set pgadmin.password="${pgaPass}" \\
+                                --set freeswitch.eslPassword="${eslPass}" \\
+                                --kubeconfig \${KUBECONFIG}
+                        """
+                    }
                 }
             }
         }
