@@ -2,6 +2,7 @@
 <document type="freeswitch/xml">
   <!-- Global Variables -->
   <X-PRE-PROCESS cmd="env-set" data="EXTERNAL_IP=$EXTERNAL_IP"/>
+  <X-PRE-PROCESS cmd="env-set" data="FREESWITCH_ESL_PASSWORD=$FREESWITCH_ESL_PASSWORD"/>
   <X-PRE-PROCESS cmd="set" data="domain=localhost"/>
   <X-PRE-PROCESS cmd="set" data="console_loglevel=info"/>
 
@@ -20,7 +21,7 @@
       <settings>
         <param name="listen-ip" value="127.0.0.1"/>
         <param name="listen-port" value="8021"/>
-        <param name="password" value="CluSt3r@Esl#2026!"/>
+        <param name="password" value="$${FREESWITCH_ESL_PASSWORD}"/>
       </settings>
     </configuration>
 
