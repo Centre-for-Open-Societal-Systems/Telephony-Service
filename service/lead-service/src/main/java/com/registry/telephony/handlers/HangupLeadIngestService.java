@@ -64,6 +64,8 @@ public class HangupLeadIngestService {
         row.setProcessingStatus(CallLeadProcessingStatus.RECEIVED);
         row.setRawEventSnapshot(raw);
         row.setNormalizedLeadPayload(lead);
+        row.setAttemptCount(0);
+        row.setNextRetryAt(null);
         row.setCreatedAt(Instant.now());
         row.setUpdatedAt(Instant.now());
 

@@ -59,7 +59,8 @@ public class LeadDispatchService {
             return;
         }
         if (row.getProcessingStatus() != CallLeadProcessingStatus.RECEIVED
-                && row.getProcessingStatus() != CallLeadProcessingStatus.SENDING) {
+                && row.getProcessingStatus() != CallLeadProcessingStatus.SENDING
+                && row.getProcessingStatus() != CallLeadProcessingStatus.FAILED_RETRYABLE) {
             return;
         }
 
@@ -70,6 +71,7 @@ public class LeadDispatchService {
             row.setProcessingStatus(CallLeadProcessingStatus.SKIPPED_NO_REGISTRY_URL);
             row.setLastError(null);
             row.setSentAt(Instant.now());
+            row.setNextRetryAt(null);
             repository.save(row);
             return;
         }
@@ -92,14 +94,25 @@ public class LeadDispatchService {
             ResponseEntity<String> resp = restTemplate.postForEntity(url, new HttpEntity<>(body, headers), String.class);
             row.setProcessingStatus(CallLeadProcessingStatus.SENT);
             row.setLastError(null);
+            row.setNextRetryAt(null);
             String snippet = resp.getBody() == null ? "" : resp.getBody();
             row.setExternalResponseSnippet(snippet.length() > 2048 ? snippet.substring(0, 2048) : snippet);
             row.setSentAt(Instant.now());
             log.info("Successfully dispatched lead {}. Registry response: {}", logId, snippet);
         } catch (Exception e) {
-            row.setProcessingStatus(CallLeadProcessingStatus.FAILED);
+            int currentAttempts = row.getAttemptCount() + 1;
+            row.setAttemptCount(currentAttempts);
+            if (currentAttempts < 5) {
+                row.setProcessingStatus(CallLeadProcessingStatus.FAILED_RETRYABLE);
+                long delayMinutes = (long) Math.pow(2, currentAttempts);
+                row.setNextRetryAt(Instant.now().plus(delayMinutes, java.time.temporal.ChronoUnit.MINUTES));
+                log.warn("Lead dispatch attempt {} failed for {}. Scheduled next retry in {} minutes. Error: {}", currentAttempts, logId, delayMinutes, e.getMessage());
+            } else {
+                row.setProcessingStatus(CallLeadProcessingStatus.FAILED_PERMANENT);
+                row.setNextRetryAt(null);
+                log.error("Lead dispatch attempt {} failed for {}. Marked as FAILED_PERMANENT. Error: {}", currentAttempts, logId, e.getMessage());
+            }
             row.setLastError(StringUtils.abbreviate(e.getMessage(), 4000));
-            log.error("Lead dispatch failed for {}", logId, e);
         }
 
         row.setUpdatedAt(Instant.now());

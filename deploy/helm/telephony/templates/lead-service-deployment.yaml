@@ -60,5 +60,17 @@ spec:
             configMapKeyRef:
               name: lead-registry-config
               key: LEAD_REGISTRY_API_KEY_VALUE
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 20
         resources:
           {{- toYaml .Values.leadService.resources | nindent 10 }}

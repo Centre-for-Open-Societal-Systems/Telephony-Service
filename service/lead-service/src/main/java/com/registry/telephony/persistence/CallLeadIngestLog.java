@@ -63,5 +63,11 @@ public class CallLeadIngestLog {
 
     @Column(name = "sent_at")
     private Instant sentAt;
+
+    @Column(name = "attempt_count", nullable = false)
+    private int attemptCount = 0;
+
+    @Column(name = "next_retry_at")
+    private Instant nextRetryAt;
 }
 
