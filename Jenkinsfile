@@ -81,8 +81,11 @@ pipeline {
         }
 
         // Build-number tags only (no :latest): the leads-api chart pins tag + digest.
+        // Additive: a failure here marks the build UNSTABLE and the existing
+        // 'Deploy to Kubernetes' stage below still runs.
         stage('ECR Push (ap-south-1)') {
             steps {
+              catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
                     credentialsId: env.AWS_CREDENTIALS_ID,
@@ -113,6 +116,7 @@ pipeline {
                         done
                     '''
                 }
+              }
             }
         }
 
